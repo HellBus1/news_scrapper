@@ -11,6 +11,7 @@ import pandas as pd
 from scrapy import signals
 from pydispatch import dispatcher
 import re
+from bs4 import BeautifulSoup
 
 class NewsSpider(scrapy.Spider):
     logging.basicConfig(
@@ -26,25 +27,25 @@ class NewsSpider(scrapy.Spider):
         "tribunnews.com"
     ]
     start_urls = [
-        # "https://www.detik.com/tag/bencana",
-        "https://www.detik.com/tag/gempa",
-        "https://www.detik.com/tag/banjir",
-        "https://www.detik.com/tag/banjir-bandang",
-        # "https://www.detik.com/tag/kemarau",
-        "https://www.detik.com/tag/kekeringan",
-        "https://www.detik.com/tag/kebakaran-hutan",
-        # "https://www.detik.com/tag/cuaca-panas",
-        # "https://www.detik.com/tag/awan-panas",
-        "https://www.detik.com/tag/longsor",
-        "https://www.detik.com/tag/angin-kencang",
-        "https://www.detik.com/tag/puting-beliung",
-        # "https://www.detik.com/tag/bencana-alam",
-        "https://www.detik.com/tag/pergerakan-tanah",
-        "https://www.detik.com/tag/pergeseran-tanah",
-        "https://www.detik.com/tag/kebakaran",
+    #     # "https://www.detik.com/tag/bencana",
+    #     "https://www.detik.com/tag/gempa",
+    #     "https://www.detik.com/tag/banjir",
+    #     "https://www.detik.com/tag/banjir-bandang",
+    #     # "https://www.detik.com/tag/kemarau",
+    #     "https://www.detik.com/tag/kekeringan",
+    #     "https://www.detik.com/tag/kebakaran-hutan",
+    #     # "https://www.detik.com/tag/cuaca-panas",
+    #     # "https://www.detik.com/tag/awan-panas",
+    #     "https://www.detik.com/tag/longsor",
+    #     "https://www.detik.com/tag/angin-kencang",
+    #     "https://www.detik.com/tag/puting-beliung",
+    #     # "https://www.detik.com/tag/bencana-alam",
+    #     "https://www.detik.com/tag/pergerakan-tanah",
+    #     "https://www.detik.com/tag/pergeseran-tanah",
+    #     "https://www.detik.com/tag/kebakaran",
         "https://www.detik.com/tag/erosi",
-        "https://www.detik.com/tag/abrasi",
-        # "https://www.detik.com/tag/tsunami",
+    #     "https://www.detik.com/tag/abrasi",
+    #     # "https://www.detik.com/tag/tsunami",
     ]
 
     headers = {
@@ -93,8 +94,7 @@ class NewsSpider(scrapy.Spider):
             self.visited.clear()
 
         if (domain == "www.detik.com"):
-            # self.current_domain = domain
-
+            self.current_domain = domain
             for article in response.css("article"):
                 link = article.css("a::attr(href)").extract_first()
 
@@ -144,34 +144,51 @@ class NewsSpider(scrapy.Spider):
 
         date = date
         date = date
-
-        # if len(response.css('p')) > 0 :
-        for paragraph in response.css('p'):
-            paragraphBody = paragraph.css("p").extract()
-            if paragraphBody != None:
-                resultDesc = (self.textParser(paragraphBody[0]).replace("*","") + " ")
-                lowerCased = resultDesc.lower()
-
-                if ("simak juga" not in lowerCased) and \
-                    ("tonton juga" not in lowerCased) and \
-                    ("gambas" not in lowerCased) and \
-                    ("simak selengkapnya" not in lowerCased):
-                    desc += ' ' + self.preprocessing(resultDesc)
-
-        description = desc
+ 
+        descBody = response.css('div.detail__body-text').extract()
+        description = ((self.textParser(descBody[0]).replace("*","") + " "))
         
         if description != "" and title != "" and date != "":
+            print('\n')
+            print('\n')
+            print('data inserted')
+            print('\n')
+            print('\n')
             data = [str(tempTitle), str(date), str(description), str(self.current_domain)]
 
             self.berita.append(data)
 
     def spider_closed(self, spider):
+        print('\n')
+        print('\n')
+        print('kesini')
+        print('\n')
+        print('\n')
         writer = pd.DataFrame(self.berita, columns=['title', 'date', 'description', 'source'])
         writer.to_csv('scrapped_news.csv', index=False, sep=',')
 
     def textParser(self, text):
         # return text
+        soup = BeautifulSoup(text, features='lxml')
+        for table in soup.find_all("table", {'class':'linksisip'}): 
+            table.decompose()
+
+        for divTag in soup.find_all("div", {'class':'detail__body-tag'}): 
+            divTag.decompose()
+
+        for divVideo in soup.find_all("div", {'class':'sisip_video_ds'}): 
+            divVideo.decompose()
+
+        for divVideo1 in soup.find_all("div", {'class':'newlist-double'}):
+            divVideo1.decompose()
+
+        for divVideo2 in soup.find_all("iframe", {"class":"video20detik_0"}):
+            divVideo2.decompose()
+
+        for unusedStrong in soup.find_all("strong"):
+            unusedStrong.decompose()
+
         converter = html2text.HTML2Text()
         converter.ignore_links = True
 
-        return converter.handle(text)
+        return converter.handle(str(soup))
