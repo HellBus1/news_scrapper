@@ -12,7 +12,7 @@
 > pip install -r requirements.txt
 
 4. Init scrapy (if not exist)
-> scrapy startproject .
+> scrapy startproject scrapper
 
 ## How to Run
 1. Go to project folder
