@@ -10,6 +10,7 @@ from scrapy.utils.log import configure_logging
 import pandas as pd
 from scrapy import signals
 from pydispatch import dispatcher
+import re
 
 class NewsSpider(scrapy.Spider):
     logging.basicConfig(
@@ -26,27 +27,26 @@ class NewsSpider(scrapy.Spider):
     ]
     start_urls = [
         # "https://www.detik.com/tag/bencana",
-        # "https://www.detik.com/tag/gempa",
-        # "https://www.detik.com/tag/banjir",
-        # "https://www.detik.com/tag/banjir-bandang",
+        "https://www.detik.com/tag/gempa",
+        "https://www.detik.com/tag/banjir",
+        "https://www.detik.com/tag/banjir-bandang",
         # "https://www.detik.com/tag/kemarau",
-        # "https://www.detik.com/tag/kekeringan",
-        # "https://www.detik.com/tag/kebakaran-hutan",
+        "https://www.detik.com/tag/kekeringan",
+        "https://www.detik.com/tag/kebakaran-hutan",
         # "https://www.detik.com/tag/cuaca-panas",
         # "https://www.detik.com/tag/awan-panas",
-        # "https://www.detik.com/tag/longsor",
-        # "https://www.detik.com/tag/angin-kencang",
+        "https://www.detik.com/tag/longsor",
+        "https://www.detik.com/tag/angin-kencang",
+        "https://www.detik.com/tag/puting-beliung",
         # "https://www.detik.com/tag/bencana-alam",
-        # "https://www.detik.com/tag/pergerakan-tanah",
-        # "https://www.detik.com/tag/pergeseran-tanah",
-        # "https://www.detik.com/tag/kebakaran",
+        "https://www.detik.com/tag/pergerakan-tanah",
+        "https://www.detik.com/tag/pergeseran-tanah",
+        "https://www.detik.com/tag/kebakaran",
         "https://www.detik.com/tag/erosi",
-        # "https://www.detik.com/tag/abrasi",
+        "https://www.detik.com/tag/abrasi",
         # "https://www.detik.com/tag/tsunami",
-        # "https://www.kompas.com/tag/kecelakaan"
-        # "https://www.kompas.com/tag/bencana",
-        # "https://www.tribunnews.com/tag/bencana"
     ]
+
     headers = {
         'Connection': 'keep-alive',
         'Cache-Control': 'max-age=0',
@@ -72,6 +72,17 @@ class NewsSpider(scrapy.Spider):
         super(NewsSpider, self).__init__(*a, **kw)
         dispatcher.connect(self.spider_closed, signals.spider_closed)
 
+    def preprocessing(self, berita):
+        s = str(berita)
+        s = s.replace('\n', ' ')
+        s = s.replace('\r', ' ')
+        tokens = [token for token in s.split(" ") if token != ""]
+        
+        T = [t for t in tokens]
+        return ' '.join(T)
+
+
+
     def parse(self, response):
         parsing_url = urlparse(response.request.url)
 
@@ -82,7 +93,7 @@ class NewsSpider(scrapy.Spider):
             self.visited.clear()
 
         if (domain == "www.detik.com"):
-            self.current_domain = domain
+            # self.current_domain = domain
 
             for article in response.css("article"):
                 link = article.css("a::attr(href)").extract_first()
@@ -90,7 +101,9 @@ class NewsSpider(scrapy.Spider):
                 parsed_link = urlparse(link)
                 self.current_subdomain = parsed_link.hostname.split('.')[0]
 
-                if self.current_subdomain not in self.skipped_subdomain:
+                if (self.current_subdomain not in self.skipped_subdomain) and \
+                    ("edu" not in parsed_link.path) and \
+                    ("foto-news" not in parsed_link.path):
                     yield response.follow(link, self.parse_detik)
 
             for navbutton in response.css('div.paging a'):
@@ -127,7 +140,8 @@ class NewsSpider(scrapy.Spider):
             title = response.css("h1.mt5::text").extract_first()
             date = response.css("div.date::text").extract_first()
             
-        title = title
+        tempTitle = self.preprocessing(title)
+
         date = date
         date = date
 
@@ -135,12 +149,19 @@ class NewsSpider(scrapy.Spider):
         for paragraph in response.css('p'):
             paragraphBody = paragraph.css("p").extract()
             if paragraphBody != None:
-                desc += (self.textParser(paragraphBody[0]).replace("*","") + " ")
+                resultDesc = (self.textParser(paragraphBody[0]).replace("*","") + " ")
+                lowerCased = resultDesc.lower()
+
+                if ("simak juga" not in lowerCased) and \
+                    ("tonton juga" not in lowerCased) and \
+                    ("gambas" not in lowerCased) and \
+                    ("simak selengkapnya" not in lowerCased):
+                    desc += ' ' + self.preprocessing(resultDesc)
 
         description = desc
         
         if description != "" and title != "" and date != "":
-            data = [str(title), str(date), str(description), str(self.current_domain)]
+            data = [str(tempTitle), str(date), str(description), str(self.current_domain)]
 
             self.berita.append(data)
 
