@@ -28,23 +28,24 @@ class NewsSpider(scrapy.Spider):
     ]
     start_urls = [
     #     # "https://www.detik.com/tag/bencana",
-    #     "https://www.detik.com/tag/gempa",
+        "https://www.detik.com/tag/gempa",
     #     "https://www.detik.com/tag/banjir",
     #     "https://www.detik.com/tag/banjir-bandang",
     #     # "https://www.detik.com/tag/kemarau",
-    #     "https://www.detik.com/tag/kekeringan",
-    #     "https://www.detik.com/tag/kebakaran-hutan",
+        "https://www.detik.com/tag/kekeringan",
+        "https://www.detik.com/tag/gempa-bumi",
+        "https://www.detik.com/tag/kebakaran-hutan",
     #     # "https://www.detik.com/tag/cuaca-panas",
     #     # "https://www.detik.com/tag/awan-panas",
-    #     "https://www.detik.com/tag/longsor",
-    #     "https://www.detik.com/tag/angin-kencang",
-    #     "https://www.detik.com/tag/puting-beliung",
-    #     # "https://www.detik.com/tag/bencana-alam",
-    #     "https://www.detik.com/tag/pergerakan-tanah",
-    #     "https://www.detik.com/tag/pergeseran-tanah",
-    #     "https://www.detik.com/tag/kebakaran",
+        "https://www.detik.com/tag/longsor",
+        "https://www.detik.com/tag/angin-kencang",
+        "https://www.detik.com/tag/puting-beliung",
+        # "https://www.detik.com/tag/bencana-alam",
+        "https://www.detik.com/tag/pergerakan-tanah",
+        "https://www.detik.com/tag/pergeseran-tanah",
+        "https://www.detik.com/tag/kebakaran",
         "https://www.detik.com/tag/erosi",
-    #     "https://www.detik.com/tag/abrasi",
+        "https://www.detik.com/tag/abrasi",
     #     # "https://www.detik.com/tag/tsunami",
     ]
 
@@ -149,21 +150,11 @@ class NewsSpider(scrapy.Spider):
         description = ((self.textParser(descBody[0]).replace("*","") + " "))
         
         if description != "" and title != "" and date != "":
-            print('\n')
-            print('\n')
-            print('data inserted')
-            print('\n')
-            print('\n')
             data = [str(tempTitle), str(date), str(description), str(self.current_domain)]
 
             self.berita.append(data)
 
     def spider_closed(self, spider):
-        print('\n')
-        print('\n')
-        print('kesini')
-        print('\n')
-        print('\n')
         writer = pd.DataFrame(self.berita, columns=['title', 'date', 'description', 'source'])
         writer.to_csv('scrapped_news.csv', index=False, sep=',')
 
