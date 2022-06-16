@@ -1,17 +1,17 @@
-
-import string
 from .parsed_news_model import ParsedNewsModel
 import scrapy
 from scrapy.linkextractors import LinkExtractor
 from urllib.parse import urlparse
 import html2text
 import logging
-from scrapy.utils.log import configure_logging
 import pandas as pd
 from scrapy import signals
 from pydispatch import dispatcher
 import re
 from bs4 import BeautifulSoup
+from scrapy import Request
+# from scrapy.spiders import Rule
+# from scrapy.linkextractors.lxmlhtml import LxmlLinkExtractor
 
 class NewsSpider(scrapy.Spider):
     logging.basicConfig(
@@ -27,26 +27,17 @@ class NewsSpider(scrapy.Spider):
         "tribunnews.com"
     ]
     start_urls = [
-    #     # "https://www.detik.com/tag/bencana",
-        "https://www.detik.com/tag/gempa",
-    #     "https://www.detik.com/tag/banjir",
-    #     "https://www.detik.com/tag/banjir-bandang",
-    #     # "https://www.detik.com/tag/kemarau",
-        "https://www.detik.com/tag/kekeringan",
-        "https://www.detik.com/tag/gempa-bumi",
-        "https://www.detik.com/tag/kebakaran-hutan",
-    #     # "https://www.detik.com/tag/cuaca-panas",
-    #     # "https://www.detik.com/tag/awan-panas",
-        "https://www.detik.com/tag/longsor",
-        "https://www.detik.com/tag/angin-kencang",
-        "https://www.detik.com/tag/puting-beliung",
-        # "https://www.detik.com/tag/bencana-alam",
-        "https://www.detik.com/tag/pergerakan-tanah",
-        "https://www.detik.com/tag/pergeseran-tanah",
-        "https://www.detik.com/tag/kebakaran",
+        # "https://www.detik.com/tag/gempa",
+        # "https://www.detik.com/tag/banjir",
+        # "https://www.detik.com/tag/kekeringan",
+        # "https://www.detik.com/tag/gempa-bumi",
+        # "https://www.detik.com/tag/longsor",
+        # "https://www.detik.com/tag/angin-kencang",
+        # "https://www.detik.com/tag/puting-beliung",
+        # "https://www.detik.com/tag/pergerakan-tanah",
+        # "https://www.detik.com/tag/kebakaran",
         "https://www.detik.com/tag/erosi",
-        "https://www.detik.com/tag/abrasi",
-    #     # "https://www.detik.com/tag/tsunami",
+        # "https://www.detik.com/tag/abrasi",
     ]
 
     headers = {
@@ -69,7 +60,7 @@ class NewsSpider(scrapy.Spider):
     berita = []
     visited = []
     skipped_subdomain = ["travel", "20", "finance", "inet", "hot", "sport", "oto", "health", "food", "foto", "wolipop"]
-    # 50
+
     def __init__(self, *a, **kw):
         super(NewsSpider, self).__init__(*a, **kw)
         dispatcher.connect(self.spider_closed, signals.spider_closed)
@@ -83,10 +74,17 @@ class NewsSpider(scrapy.Spider):
         T = [t for t in tokens]
         return ' '.join(T)
 
-
-
     def parse(self, response):
         parsing_url = urlparse(response.request.url)
+        if ("searchall" in parsing_url.path):
+            try:
+                start_url = self.start_urls.pop()
+            except IndexError:
+                # nothing left to do
+                return
+            else:
+                meta = {'start_urls': self.start_urls}
+                yield Request(start_url, self.parse, meta=meta)
 
         domain = parsing_url.netloc
 
@@ -97,6 +95,7 @@ class NewsSpider(scrapy.Spider):
         if (domain == "www.detik.com"):
             self.current_domain = domain
             for article in response.css("article"):
+
                 link = article.css("a::attr(href)").extract_first()
 
                 parsed_link = urlparse(link)
@@ -108,8 +107,9 @@ class NewsSpider(scrapy.Spider):
                     yield response.follow(link, self.parse_detik)
 
             for navbutton in response.css('div.paging a'):
-                
+
                 currentIndexView = navbutton.css("a::text").extract_first()
+
                 if currentIndexView != None:
                     if (currentIndexView.isnumeric() and (currentIndexView not in self.visited)):
                         self.visited.append(currentIndexView)
